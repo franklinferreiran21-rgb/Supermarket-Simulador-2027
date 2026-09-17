@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MEU JOGO</title>
+</head>
+
+<style>
+ body {
+  margin: 0;
+  overflow: hidden;
+}
+
+#loadingScreen {
+  position: fixed;
+  inset: 0;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  background: #111;
+
+  z-index: 9999;
+}
+
+#loadingBox {
+  width: 80%;
+  max-width: 400px;
+
+  text-align: center;
+  color: white;
+}
+
+#loadingBar {
+  width: 100%;
+  height: 20px;
+
+  background: #333;
+
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+#loadingProgress {
+  width: 0%;
+  height: 100%;
+
+  background: limegreen;
+
+  transition: width 0.15s;
+}
+
+#loadingText {
+  font-size: 18px;
+}
+
+#joystick {
+  visibility: hidden;
+  position: fixed;
+  left: 30px;
+  bottom: 30px;
+
+  width: 120px;
+  height: 120px;
+  z-index: 10;
+
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+
+  touch-action: none;
+}
+
+#stick {
+  position: absolute;
+
+  width: 50px;
+  height: 50px;
+
+  left: 35px;
+  top: 35px;
+
+  border-radius: 50%;
+
+  background: rgba(255, 255, 255, 0.8);
+}
+</style>
+<body>
+  
+  <div id="loadingScreen">
+  <div id="loadingBox">
+
+    <h2>Carregando...</h2>
+
+    <div id="loadingBar">
+      <div id="loadingProgress"></div>
+    </div>
+
+    <p id="loadingText">0%</p>
+
+  </div>
+</div>
+  
+    <div id="joystick">
+  <div id="stick"></div>
+    </div>
+  
+  <script type="importmap"> 
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"
+    }
+  }
+  </script>
+  
+  <script type="module">
+  import * as THREE from "three";
+  import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+  
+   //========================== IMPORTS =============================//
+  
+  import { telaInit } from "./telainit.js";
+  
+   //================== TELA DE CARREGAMENTO =============================//
+  
+  const loading = telaInit(animate);
+  
+    //========================== SCENE =============================//
+  
+  const scene = new THREE.Scene();
+  
+  scene.background = new THREE.Color("skyblue");
+  
+  //========================== RENDERER =============================//
+  
+  const renderer = new THREE.WebGLRenderer({antialias: true});
+  
+  renderer.shadowMap.enabled = true;
+  
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3));
+
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  document.body.appendChild(renderer.domElement);
+  
+  const pmremGenerator = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+  
+  //========================== CAMERA =============================//
+  
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+  
+  let cameraRotX = 0.3;
+  let cameraRotY = 0;
+  let ultimoX = 0;
+  let ultimoY = 0;
+  let movendoCamera = false;
+
+  renderer.domElement.style.touchAction = "none";
+
+  renderer.domElement.addEventListener("pointerdown", (e) => {
+
+  movendoCamera = true;
+
+  ultimoX = e.clientX;
+  ultimoY = e.clientY;
+
+    renderer.domElement.setPointerCapture(e.pointerId);
+  });
+
+
+  renderer.domElement.addEventListener("pointermove", (e) => {
+
+  if (!movendoCamera) return;
+
+  const movimentoX = e.clientX - ultimoX;
+  const movimentoY = e.clientY - ultimoY;
+
+  cameraRotY -= movimentoX * 0.005;
+  cameraRotX += movimentoY * 0.005;
+
+  cameraRotX = Math.max(
+    -1.2,
+    Math.min(1.2, cameraRotX)
+  );
+    
+    ultimoX = e.clientX;
+    ultimoY = e.clientY;
+  });
+
+  renderer.domElement.addEventListener("pointerup", () => {
+    movendoCamera = false;
+  });
+  
+//==========================  MAPA   =============================//
+  
+  const mapaGeometry = new THREE.PlaneGeometry(200,  200);
+  const mapaMaterial = new THREE.MeshStandardMaterial({color: "green", roughness: 0.9, metalness: 0});
+  const mapa = new THREE.Mesh(mapaGeometry, mapaMaterial);
+  mapa.rotation.x = -Math.PI/2;
+  scene.add(mapa);
+  
+  //========================== GRID HELPER =============================//
+  
+  const grid = new THREE.GridHelper(200, 200);
+  scene.add(grid);
+  
+    //========================== SOL =============================//
+  
+  const sol = new THREE.DirectionalLight("white", 3);
+  sol.position.set(5, 10, 5);
+  scene.add(sol);
+  
+    //========================== LUZ AMBIENTE =============================//
+  
+  const luzAmbiente = new THREE.HemisphereLight("skyblue", "green", 1);
+  scene.add(luzAmbiente);
+  
+//==========================   PLAYER   =============================//
+  
+  const playerGeometry = new THREE.BoxGeometry(1, 2,1);
+  const playerMaterial = new THREE.MeshStandardMaterial({color: "red", roughness: 0.2, metalness: 1});
+  const player = new THREE.Mesh(playerGeometry, playerMaterial);
+  player.position.set(0, 1, 0);
+  scene.add(player);
+  camera.lookAt(player.position);
+  
+//==========================JOYSTICK =============================//
+  
+  const joystick = document.getElementById("joystick");
+  const stick = document.getElementById("stick");
+
+  let joystickX = 0;
+  let joystickY = 0;
+
+  const maxDistance = 35;
+
+  function moverJoystick(clientX, clientY) {
+
+  const rect = joystick.getBoundingClientRect();
+
+  const centroX = rect.left + rect.width / 2;
+  const centroY = rect.top + rect.height / 2;
+
+  let x = clientX - centroX;
+  let y = clientY - centroY;
+
+  const distancia = Math.sqrt(x * x + y * y);
+
+  if (distancia > maxDistance) {
+
+    x = x / distancia * maxDistance;
+    y = y / distancia * maxDistance;
+
+  }
+
+  stick.style.transform =
+    `translate(${x}px, ${y}px)`;
+
+    joystickX = x / maxDistance;
+    joystickY = y / maxDistance;
+  }
+
+  joystick.addEventListener("pointerdown", (e) => {
+
+  joystick.setPointerCapture(e.pointerId);
+
+  moverJoystick(e.clientX, e.clientY);
+    
+  });
+
+  joystick.addEventListener("pointermove", (e) => {
+
+  if (joystick.hasPointerCapture(e.pointerId)) {
+
+    moverJoystick(e.clientX, e.clientY);
+
+  }
+    
+  });
+
+  joystick.addEventListener("pointerup", () => {
+
+  stick.style.transform = "translate(0px, 0px)";
+
+  joystickX = 0;
+  joystickY = 0;
+    
+  });
+ 
+//==========================  SETSIZE  =============================//
+  
+  window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(
+    window.innerWidth,
+    window.innerHeight
+    );
+  });
+  
+    //========================== ANIMATE  =============================//
+  
+  function animate() {
+  requestAnimationFrame(animate);
+
+  const velocidade = 0.05;
+
+  const movimentoX =
+    joystickX * Math.cos(cameraRotY) +
+    joystickY * Math.sin(cameraRotY);
+
+  const movimentoZ =
+    -joystickX * Math.sin(cameraRotY) +
+    joystickY * Math.cos(cameraRotY);
+
+  player.position.x += movimentoX * velocidade;
+  player.position.z += movimentoZ * velocidade;
+
+  if (Math.abs(joystickX) > 0.05 || Math.abs(joystickY) > 0.05) {
+    player.rotation.y = Math.atan2(
+      movimentoX,
+      movimentoZ
+    );
+  }
+
+    const distanciaNormal = 5;
+    const aproxima = Math.max(0, -cameraRotX);
+    const distanciaCamera = Math.max(2, distanciaNormal - aproxima * 3);
+
+    camera.position.x = player.position.x + Math.sin(cameraRotY) * distanciaCamera;
+    camera.position.z = player.position.z + Math.cos(cameraRotY) * distanciaCamera;
+    camera.position.y = player.position.y + Math.sin(cameraRotX) * distanciaCamera;
+
+    const alturaMinima = 0.4;
+
+    if (camera.position.y < alturaMinima) {camera.position.y = alturaMinima;}
+
+      camera.lookAt(player.position);
+      renderer.render(scene, camera);
+      
+  }
+  
+loading.iniciar();
+
+  </script>
+</body>
+</html>
